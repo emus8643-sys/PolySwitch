@@ -1,0 +1,11 @@
+/build*/
+*.so
+*.o
+*.user
+*.log
+*.zip
+*.tar.gz
+*.tar.xz
+backups/
+polyswitchrc
+__pycache__/

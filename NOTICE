@@ -1,0 +1,10 @@
+PolySwitch is developed by emus8643-sys and contributors with AI-assisted development.
+
+The original PolySwitch prototype declared the MIT license in its plugin metadata.
+That notice is retained in LICENSES/MIT.txt. This combined release is distributed
+under GPL-3.0-or-later, with the complete license in LICENSE, for compatibility
+with the KWin libraries it links against. Third-party libraries retain their own
+licenses and are not included in this source release.
+
+KWin, KDE Frameworks and Qt are dependencies maintained by their respective
+contributors. PolySwitch is an independent project, not an official KDE product.
