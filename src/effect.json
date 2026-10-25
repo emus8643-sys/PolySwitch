@@ -1,0 +1,10 @@
+{
+  "KPlugin": {
+    "Id": "polyswitch_native4",
+    "Name": "PolySwitch — 3D Window Switcher (Experimental)",
+    "Description": "Live window faces with type-to-search orientation, zoom, customizable appearance, and red hover highlighting",
+    "Category": "Window Management",
+    "EnabledByDefault": false,
+    "License": "GPL-3.0-or-later"
+  }
+}
