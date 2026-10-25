@@ -22,6 +22,19 @@ A 3D application-window switcher for KDE Plasma Wayland. Each window gets a live
 
 Application windows only; individual browser tabs are not enumerated.
 
+## Download a prebuilt release
+
+The [Releases page](https://github.com/emus8643-sys/PolySwitch/releases) provides a binary archive for **KDE neon 24.04, x86_64, KWin 6.8.1, Qt 6.11.1**. This download does not require a compiler. Other systems should build from source below. The installer refuses other versions; matching version numbers alone cannot guarantee compatibility with distribution patches.
+
+Download and extract `PolySwitch-0.4.13-neon24.04-kwin6.8.1-qt6.11.1-x86_64.tar.gz`, open a terminal in the extracted folder, then run:
+
+```sh
+./install-binary.sh --check-only
+./install-binary.sh
+```
+
+This checks the archive's plugin checksum, runtime libraries and tested platform, then backs up/replaces the system plugin using KDE authentication. Save work, sign out/in normally and enable PolySwitch in Desktop Effects. Rollback/disable/uninstall scripts are included. The same release provides complete source archives under GPL-3.0-or-later.
+
 ## Build and install
 
 Requirements: C++20 compiler, CMake 3.24+, ECM, Qt 6 Core/Gui/Widgets/Quick/Quick3D/ShaderTools, KDE Frameworks 6 CoreAddons/GlobalAccel/Config, and matching KWin development headers. QtQuick Controls, Layouts, Shapes, Effects and Quick3D runtime modules must also be available.
@@ -46,6 +59,12 @@ chmod +x update.sh disable.sh rollback.sh uninstall.sh
 ```
 
 Installation uses KDE authentication to replace the system plugin and saves the previous binary under `~/.local/share/polyswitch/backups/` (or `$XDG_DATA_HOME/polyswitch/backups/`). Close PolySwitch before installing. Save work and **sign out/in normally**, then enable **PolySwitch** in System Settings → Desktop Effects. Do not manually restart KWin or hot-load a replaced native plugin.
+
+## Shape gallery
+
+These are actual renders of the effect using synthetic demo windows, rather than personal application content.
+
+![Three, four, five, six, seven, eight, nine, ten, eleven, twelve, sixteen and twenty windows](docs/shapes-gallery.png)
 
 This is currently a compiled native effect, not a one-click KDE Store package.
 
