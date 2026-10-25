@@ -1,6 +1,6 @@
 # PolySwitch
 
-**AI-generated software:** PolySwitch was developed with AI-generated code, directed and tested by its creator. It is an experimental project; review the source and compatibility notes before installing.
+**AI-generated software:** PolySwitch was developed with AI assistance. It is an experimental project; review the source and compatibility notes before installing.
 
 A 3D application-window switcher for KDE Plasma Wayland. Each window gets a live face on a shape that changes with the number of windows.
 
