@@ -68,6 +68,11 @@ These are actual renders of the effect using synthetic demo windows, rather than
 
 This is currently a compiled native effect, not a one-click KDE Store package.
 
+## Video demonstration
+
+[1000026637.webm](https://github.com/user-attachments/assets/be88ae2f-02fd-43cb-a2a5-f82db63d1585)
+
+
 ## Controls
 
 | Action | Control |
