@@ -11,21 +11,24 @@ C.ComboBox {
     contentItem: TextInput {
         readOnly: true; enabled: false
         text: control.displayText
-        color: "#f2f2f4"
+        color: control.palette.text
         verticalAlignment: Text.AlignVCenter
         leftPadding: 10; rightPadding: 30; clip: true
     }
-    background: Rectangle { color: "#303137"; radius: 5; border.color: control.activeFocus ? "#b5b7c1" : "#656770" }
-    indicator: Text { x: control.width-width-10; y: (control.height-height)/2; text: "▾"; color: "#dedee5"; font.pixelSize: 16 }
+    background: Rectangle { color: control.palette.button; radius: 5; border.color: control.activeFocus ? control.palette.text : control.palette.mid }
+    indicator: Text { x: control.width-width-10; y: (control.height-height)/2; text: "▾"; color: control.palette.text; font.pixelSize: 16 }
     popup: C.Popup {
         popupType: C.Popup.Item
         y: control.height+3
         width: control.width
-        height: control.count*38+2
+        height: Math.min(control.count*38+2,320)
         padding: 1
         closePolicy: C.Popup.CloseOnEscape | C.Popup.CloseOnPressOutsideParent
-        background: Rectangle { color: "#292a30"; border.color: "#737580"; radius: 4 }
-        contentItem: Column {
+        background: Rectangle { color: control.palette.base; border.color: control.palette.mid; radius: 4 }
+        contentItem: C.ScrollView {
+            clip:true
+            contentWidth:availableWidth
+            Column {
             Repeater {
                 model: control.model
                 Rectangle {
@@ -35,14 +38,15 @@ C.ComboBox {
                     objectName: "popupChoice"+index
                     readonly property string text: String(modelData[control.textRole] || modelData)
                     width: control.width-2; height: 38
-                    color: rowMouse.containsMouse || control.highlightedIndex===index ? "#555862" : "#292a30"
-                    Text { anchors.fill: parent; anchors.margins: 8; text: choice.text; color: "#f2f2f4"; verticalAlignment: Text.AlignVCenter; elide: Text.ElideRight }
+                    color: rowMouse.containsMouse || control.highlightedIndex===index ? Qt.darker(control.palette.button,1.2) : control.palette.base
+                    Text { anchors.fill: parent; anchors.margins: 8; text: choice.text; color: control.palette.text; verticalAlignment: Text.AlignVCenter; elide: Text.ElideRight }
                     MouseArea {
                         id: rowMouse
                         anchors.fill: parent; hoverEnabled: true
-                        onClicked: { control.currentIndex=choice.index; control.activated(choice.index); control.popup.close(); }
+                        onClicked: { control.activated(choice.index); control.popup.close(); }
                     }
                 }
+            }
             }
         }
     }

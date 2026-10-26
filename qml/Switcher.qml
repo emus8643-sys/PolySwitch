@@ -15,6 +15,7 @@ Item {
     readonly property var nativeWindowIds: taskEntries.map(task => task.id)
     readonly property var nativeWindowTitles: taskEntries.map(task => task.title)
     Component.onCompleted: {
+        if(!prefs.onboardingCompleted)Qt.callLater(function(){walkthrough.open();});
         if(typeof effectBridge.consumeSettingsRequest==="function" && effectBridge.consumeSettingsRequest())settingsOpen=true;
     }
     focus: true
@@ -65,7 +66,7 @@ Item {
     }
     function focusSelectedFace() {
         velX=0; velY=0;
-        if(polyGeometry.morphing)return;
+        if(polyGeometry.morphing || uprightRoll.running)return;
         const face = polyGeometry.faces[selectedTask];
         if (face) orientation = ScreenRotation.uprightFace(face.normal);
     }
@@ -88,6 +89,7 @@ Item {
     property real idleMilliseconds: 0
     property bool idleAligned: false
     function noteInteraction() {
+        uprightRoll.stop();
         idleMilliseconds=0; idleAligned=false;
         if(effectBridge && typeof effectBridge.markInteraction==="function") effectBridge.markInteraction();
     }
@@ -108,13 +110,16 @@ Item {
         if(index<0)return;
         selectedId=nativeWindowIds[index];
         keyboardMode=true;
-        focusSelectedFace();
+        velX=0;velY=0;
+        uprightRoll.from=orientation;
+        uprightRoll.to=ScreenRotation.uprightFace(polyGeometry.faces[index].normal);
+        uprightRoll.start();
     }
     function advanceIdle(milliseconds) { updateIdleElapsed(idleMilliseconds+milliseconds); }
     function updateIdleElapsed(milliseconds) {
         if(polyGeometry.morphing || !prefs.autoUpright || dragging || searchQuery.trim()) { idleMilliseconds=0; return; }
         idleMilliseconds=milliseconds;
-        if(!idleAligned && idleMilliseconds>=1000) { idleAligned=true; alignNearestFace(); }
+        if(!idleAligned && idleMilliseconds>=prefs.autoUprightDelay*1000) { idleAligned=true; alignNearestFace(); }
     }
     Keys.onPressed: event => {
         noteInteraction();
@@ -165,7 +170,16 @@ Item {
         }
     }
     property quaternion orientation: ScreenRotation.initialOrientation()
+    QuaternionAnimation {
+        id:uprightRoll
+        objectName:"uprightRoll"
+        target:root;property:"orientation"
+        type:QuaternionAnimation.Slerp
+        duration:root.prefs.autoUprightDuration
+        easing.type:Easing.InOutCubic
+    }
     function applyScreenRotation(pitchStep, yawStep) {
+        uprightRoll.stop();
         root.orientation = ScreenRotation.rotate(root.orientation,pitchStep,yawStep);
     }
     property point lastPos: Qt.point(0, 0)
@@ -211,7 +225,7 @@ Item {
         anchors.fill: parent
         color: "transparent"
         border.width: 1
-        border.color: "#32121d"
+        border.color: root.prefs.uiBorderColor
     }
     View3D {
         id: scene
@@ -229,10 +243,10 @@ Item {
         }
         // Broad, low-contrast neutral fill from both sides keeps the mesh readable
         // through rotation; opposing warm lights keep the red tint visible.
-        DirectionalLight { eulerRotation.x: -32; eulerRotation.y: -28; brightness: 0.75; color: "#d9dbe1" }
-        DirectionalLight { eulerRotation.x: 30; eulerRotation.y: 145; brightness: 0.62; color: "#bbb4bc" }
-        DirectionalLight { eulerRotation.x: -20; eulerRotation.y: 65; brightness: 0.50; color: "#ff5265" }
-        DirectionalLight { eulerRotation.x: 24; eulerRotation.y: -115; brightness: 0.42; color: "#ff5265" }
+        DirectionalLight { eulerRotation.x: -32; eulerRotation.y: -28; brightness: root.prefs.lightBrightness; color: root.prefs.fillLightColor }
+        DirectionalLight { eulerRotation.x: 30; eulerRotation.y: 145; brightness: root.prefs.lightBrightness*0.83; color: root.prefs.fillLightColor }
+        DirectionalLight { eulerRotation.x: -20; eulerRotation.y: 65; brightness: root.prefs.lightBrightness*0.67; color: root.prefs.lightingColor }
+        DirectionalLight { eulerRotation.x: 24; eulerRotation.y: -115; brightness: root.prefs.lightBrightness*0.56; color: root.prefs.lightingColor }
         Model {
             id: body
             geometry: PrismGeometry {
@@ -409,9 +423,9 @@ Item {
             Rectangle {
                 anchors.fill: parent
                 radius: 7
-                color: "#e1111018"
+                color: Qt.alpha(root.prefs.uiPanelColor,0.94)
                 border.width: 1
-                border.color: "#bdef4057"
+                border.color: root.prefs.borderColor
             }
             Column {
                 anchors.fill: parent
@@ -420,7 +434,7 @@ Item {
                 Text {
                     width: parent.width
                     text: "TASK " + (faceLabel.index + 1)
-                    color: "#ff7587"
+                    color: root.prefs.borderColor
                     font.bold: true
                     font.pixelSize: 9
                     horizontalAlignment: Text.AlignHCenter
@@ -428,7 +442,7 @@ Item {
                 Text {
                     width: parent.width
                     text: String(root.nativeWindowTitles[faceLabel.index] || "Untitled window")
-                    color: "#fff3f5"
+                    color: root.prefs.uiTextColor
                     font.pixelSize: 12
                     font.bold: true
                     elide: Text.ElideMiddle
@@ -442,6 +456,7 @@ Item {
     // Wall-clock ticks come from one native timer, independent of which
     // display drives Qt Quick's animation clock or its refresh rate.
     function advanceInertia(milliseconds) {
+        if(uprightRoll.running)return;
         if (!prefs.inertiaEnabled || dragging) return;
         if (Math.abs(velX)+Math.abs(velY)<=0.09) { velX=0; velY=0; return; }
         const steps=milliseconds/16;
@@ -517,15 +532,16 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         height: 55
-        color: "#cc10141d"
-        Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: "#8e2438" }
+        color: Qt.alpha(root.prefs.uiPanelColor,root.prefs.headerOpacity/100)
+        PlasmaFrame { anchors.fill:parent;prefs:root.prefs;assetPath:root.effectBridge.settings.themeInfo.artwork.header || "";revision:root.effectBridge.settings.themeInfo.artworkRevision;opacity:root.prefs.headerOpacity/100 }
+        Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: root.prefs.uiBorderColor }
         Row {
             anchors.left: parent.left; anchors.leftMargin: 22
             anchors.verticalCenter: parent.verticalCenter
             spacing: 18
-            Text { text: "POLYSWITCH  /  STAGE 4.15"; color: "#fff0f3"; font.bold: true; font.pixelSize: 17 }
-            Text { text: root.nativeWindowCount + " WINDOWS"; color: "#ff5b73"; font.pixelSize: 14 }
-            Text { text: "Wheel zoom · RMB rotate · Arrows select · Enter switch · Esc close"; color: "#9fa8b7"; font.pixelSize: 12 }
+            Text { text: "POLYSWITCH  /  STAGE 4.18"; color: root.prefs.uiTextColor; font.bold: true; font.pixelSize: 17 }
+            Text { text: root.nativeWindowCount + " WINDOWS"; color: root.prefs.borderColor; font.pixelSize: 14 }
+            Text { text: "Wheel zoom · RMB rotate · Arrows select · Enter switch · Esc close"; color: root.prefs.uiMutedColor; font.pixelSize: 12 }
         }
     }
 
@@ -536,11 +552,14 @@ Item {
         x: 22; y: root.prefs.showHeader ? 66 : 12
         width: Math.min(390,root.width-(root.prefs.showHeader ? 44 : 160)); height: 40
         placeholderText: "Type to find a task…"
-        color: "#fff0f3"
-        placeholderTextColor: "#b5a9b4"
+        color: root.prefs.uiTextColor
+        placeholderTextColor: root.prefs.uiMutedColor
         selectByMouse: true
         leftPadding: 12; rightPadding: 52
-        background: Rectangle { color: "#ed1c1822"; radius: 7; border.color: searchField.activeFocus ? root.accent : "#79404f" }
+        background:Item {
+            Rectangle { anchors.fill:parent;color:Qt.alpha(root.prefs.uiBaseColor,0.94);radius:7;border.color:searchField.activeFocus?root.accent:root.prefs.uiBorderColor }
+            PlasmaFrame { anchors.fill:parent;prefs:root.prefs;assetPath:root.effectBridge.settings.themeInfo.artwork.input || "";framePrefix:searchField.activeFocus?"focus":"base";surfaceColor:root.prefs.uiBaseColor;revision:root.effectBridge.settings.themeInfo.artworkRevision }
+        }
         onTextChanged: root.searchQuery=text
         Keys.priority: Keys.BeforeItem
         Keys.onPressed: event => {
@@ -555,7 +574,7 @@ Item {
             anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
             width: 44; height: 36
             text: "×"; visible: searchField.text.length>0
-            contentItem: Text { text: "×"; color: "#fff0f3"; font.pixelSize: 22; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+            contentItem: Text { text: "×"; color: root.prefs.uiTextColor; font.pixelSize: 22; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
             onClicked: { searchField.clear(); root.forceActiveFocus(); }
         }
     }
@@ -564,19 +583,19 @@ Item {
         width: searchField.width
         visible: root.searchQuery.trim().length>0
         text: root.searchMatches.length ? root.searchMatches.length+" matches · ↑/↓ browse · Enter switch" : "No matching windows"
-        color: root.searchMatches.length ? "#fff0f3" : "#ff778e"
+        color: root.searchMatches.length ? root.prefs.uiTextColor : root.prefs.uiErrorColor
         font.pixelSize: 12
     }
 
-    C.Button {
+    PlasmaButton {
+        prefs:root.prefs;artwork:root.effectBridge.settings.themeInfo.artwork
         anchors.right: parent.right; anchors.rightMargin: 18
         anchors.top: parent.top; anchors.topMargin: 10
         z: 10
         text: "Settings"
         focusPolicy: Qt.NoFocus
         width: 104; height: 34
-        contentItem: Text { text: "Settings"; color: "#fff0f3"; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
-        background: Rectangle { color: "#30202b"; radius: 6; border.color: root.accent }
+        contentItem: Text { text: "Settings"; color: root.prefs.uiTextColor; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
         objectName: "settingsButton"
         onClicked: {
             root.settingsPreviewTask = root.hoveredTask >= 0 ? root.hoveredTask : root.hitFace(root.width/2,root.height/2);
@@ -594,6 +613,7 @@ Item {
         width: Math.min(370,root.width-36)
         effectBridge: root.effectBridge
         store: root.effectBridge.settings
+        onWalkthroughRequested:walkthrough.open()
         onCloseRequested: { root.settingsOpen = false; root.forceActiveFocus(); }
     }
     Text {
@@ -601,6 +621,7 @@ Item {
         anchors.bottomMargin: 20
         anchors.horizontalCenter: parent.horizontalCenter
         text: "Live windows · Hover to highlight · Settings to customize"
-        color: "#b5b8c4"; font.pixelSize: 12
+        color: root.prefs.uiMutedColor; font.pixelSize: 12
     }
+    FirstRunSetup { id:walkthrough;store:root.effectBridge.settings;onFinished:root.forceActiveFocus() }
 }

@@ -9,32 +9,37 @@ C.Pane {
     property var effectBridge: null
     required property var store
     signal closeRequested()
-    property var backgroundListing: ({entries:[]})
-    function browseBackground(folder) {
-        backgroundListing=store.backgroundFolder(folder || "");
-        backgroundPath.text=backgroundListing.path;
-    }
+    signal walkthroughRequested()
+    readonly property var prefs: store.values
     padding: 18
-    palette.window: "#14131c"
-    palette.text: "#fff0f3"
-    palette.windowText: "#fff0f3"
-    palette.buttonText: "#fff0f3"
-    palette.button: "#30242d"
-    palette.base: "#211c26"
-    palette.highlight: "#ef334d"
-    background: Rectangle { color: "#f514131c"; radius: 12; border.color: "#79404f" }
+    palette.window: prefs.uiPanelColor
+    palette.text: prefs.uiTextColor
+    palette.windowText: prefs.uiTextColor
+    palette.buttonText: prefs.uiTextColor
+    palette.button: prefs.uiButtonColor
+    palette.mid: prefs.uiBorderColor
+    palette.placeholderText: prefs.uiMutedColor
+    palette.base: prefs.uiBaseColor
+    palette.highlight: prefs.borderColor
+    palette.highlightedText: prefs.uiHighlightTextColor
+    background: Item {
+        Rectangle { anchors.fill:parent;color:Qt.alpha(panel.prefs.uiPanelColor,panel.prefs.panelOpacity/100);radius:12;border.color:panel.prefs.uiBorderColor }
+        PlasmaFrame { anchors.fill:parent;anchors.margins:-12;prefs:panel.prefs;assetPath:panel.store.themeInfo.artwork.panel || "";framePrefix:"shadow";visible:panel.prefs.plasmaArtworkShadows;revision:panel.store.themeInfo.artworkRevision }
+        PlasmaFrame { objectName:"plasmaSettingsFrame";anchors.fill:parent;prefs:panel.prefs;assetPath:panel.store.themeInfo.artwork.panel || "";revision:panel.store.themeInfo.artworkRevision;opacity:panel.prefs.panelOpacity/100 }
+    }
     // Swallow unused panel clicks, keeping the preview below from activating.
     MouseArea { anchors.fill: parent; acceptedButtons: Qt.AllButtons; onWheel: wheel => wheel.accepted=true }
     ColumnLayout {
         anchors.fill: parent
         RowLayout {
-            C.Label { color: "#fff0f3"; text: "PolySwitch settings"; font.pixelSize: 20; font.bold: true; Layout.fillWidth: true }
+            C.Label { color: panel.prefs.uiTextColor; text: "PolySwitch settings"; font.pixelSize: 20; font.bold: true; Layout.fillWidth: true }
             C.ToolButton { text: "Close"; Layout.preferredWidth: 64; Layout.preferredHeight: 30
-                background: Rectangle { color: "#30202b"; radius: 5; border.color: "#79404f" }
-                contentItem: C.Label { text: "Close"; color: "#fff0f3"; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter } onClicked: { panel.store.flush(); panel.closeRequested(); } }
+                background: Rectangle { color: panel.prefs.uiButtonColor; radius: 5; border.color: panel.prefs.uiBorderColor }
+                contentItem: C.Label { text: "Close"; color: panel.prefs.uiTextColor; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter } onClicked: { panel.store.flush(); panel.closeRequested(); } }
         }
-        C.Label { text: "Preview changes live · Saved automatically"; color: "#bfb3bd"; font.pixelSize: 12 }
+        C.Label { text: "Preview changes live · Saved automatically"; color: panel.prefs.uiMutedColor; font.pixelSize: 12 }
         C.ScrollView {
+            palette:panel.palette
             id: settingsScroll
             C.ScrollBar.vertical.policy: C.ScrollBar.AlwaysOn
             Layout.fillWidth: true
@@ -46,11 +51,48 @@ C.Pane {
                 id: settingsColumn
                 width: settingsScroll.availableWidth
                 spacing: 16
-                C.Label { text: "HEADER AND BACKGROUND"; color: "#ff778e"; font.bold: true }
+                ProfileSettings { Layout.fillWidth:true;store:panel.store;effectBridge:panel.effectBridge;onWalkthroughRequested:panel.walkthroughRequested() }
+                C.Label { text:"KDE THEME";color:panel.prefs.borderColor;font.bold:true }
+                SettingsSwitch { text:"Follow KDE Theme";keyName:"followKdeTheme";store:panel.store;objectName:"followKdeThemeSwitch" }
+                SettingsComboBox {
+                    objectName:"themeModeCombo";Layout.fillWidth:true
+                    model:[{text:"Automatic · follow all KDE colors",value:"automatic"},{text:"Mixed · KDE with individual overrides",value:"mixed"},{text:"Manual · use saved custom colors",value:"manual"}]
+                    textRole:"text";currentIndex:model.findIndex(option=>option.value===panel.prefs.themeMode)
+                    onActivated:index=>panel.store.setValue("themeMode",model[index].value)
+                }
+                C.Label { Layout.fillWidth:true;wrapMode:Text.WordWrap;color:panel.prefs.uiMutedColor;text:panel.store.themeInfo.schemeName+" · "+(panel.store.themeInfo.dark?"Dark":"Light")+" · Accent "+panel.store.themeInfo.accent+"\nPlasma style: "+panel.store.themeInfo.plasmaTheme+" (detected separately)" }
+                SettingsComboBox {
+                    objectName:"themeGlowPaletteCombo";Layout.fillWidth:true;enabled:panel.prefs.followKdeTheme
+                    model:[{text:"Glow palette: accent",value:"accent"},{text:"Glow palette: complementary",value:"complementary"},{text:"Glow palette: analogous",value:"analogous"}]
+                    textRole:"text";currentIndex:model.findIndex(option=>option.value===panel.prefs.themeGlowPalette)
+                    onActivated:index=>panel.store.setValue("themeGlowPalette",model[index].value)
+                }
+                SettingsSwitch { text:"Use Plasma SVG artwork";keyName:"plasmaArtwork";store:panel.store;objectName:"plasmaArtworkSwitch" }
+                SettingsSwitch { text:"Plasma SVG panel shadows";keyName:"plasmaArtworkShadows";store:panel.store }
+                SettingsComboBox {
+                    Layout.fillWidth:true;objectName:"themeColorSourceCombo"
+                    model:[{text:"Colors: KDE application scheme",value:"application"},{text:"Colors: Plasma desktop style",value:"plasma"}]
+                    textRole:"text";currentIndex:model.findIndex(option=>option.value===panel.prefs.themeColorSource)
+                    onActivated:index=>panel.store.setValue("themeColorSource",model[index].value)
+                }
+                SettingsComboBox {
+                    Layout.fillWidth:true;objectName:"plasmaArtworkVariantCombo"
+                    model:[{text:"Artwork: automatic",value:"automatic"},{text:"Artwork: translucent",value:"translucent"},{text:"Artwork: opaque",value:"opaque"},{text:"Artwork: solid",value:"solid"}]
+                    textRole:"text";currentIndex:model.findIndex(option=>option.value===panel.prefs.plasmaArtworkVariant)
+                    onActivated:index=>panel.store.setValue("plasmaArtworkVariant",model[index].value)
+                }
+                C.Label { Layout.fillWidth:true;wrapMode:Text.WordWrap;color:panel.prefs.uiMutedColor;text:"SVG panels, headers, inputs and buttons use the selected Plasma style, with Breeze/plain fallback. For fixed-color artwork, choose Plasma desktop style colors to match its text. Polygon faces keep their live previews and glow." }
+                C.Label { Layout.fillWidth:true;wrapMode:Text.WordWrap;color:panel.prefs.uiMutedColor;text:"Editing a theme color adds an override and switches to Mixed. Your saved manual colors remain available in Manual mode." }
+                PlasmaButton { prefs:panel.prefs;artwork:panel.store.themeInfo.artwork;palette:panel.palette; text:"Clear theme overrides";enabled:panel.prefs.themeOverrides.length>0;onClicked:panel.store.clearThemeOverrides() }
+                SliderSetting { Layout.fillWidth:true;label:"Header opacity";keyName:"headerOpacity";store:panel.store;suffix:"%" }
+                SliderSetting { Layout.fillWidth:true;label:"Settings opacity";keyName:"panelOpacity";store:panel.store;from:70;to:100;suffix:"%" }
+                ColorSetting { Layout.fillWidth:true;label:"Lighting tint";keyName:"lightingColor";store:panel.store }
+                ColorSetting { Layout.fillWidth:true;label:"Light fill color";keyName:"fillLightColor";store:panel.store }
+                SliderSetting { Layout.fillWidth:true;label:"Light brightness";keyName:"lightBrightness";store:panel.store;from:0.1;to:2;step:0.05 }
+                C.Label { text: "HEADER AND BACKGROUND"; color: panel.prefs.borderColor; font.bold: true }
                 SettingsSwitch { text: "Show header"; keyName: "showHeader"; store: panel.store; objectName:"showHeaderSwitch" }
-                C.Button { text: "Import background image…"; objectName:"importBackgroundButton"; Layout.fillWidth:true; onClicked: { if(panel.effectBridge && typeof panel.effectBridge.chooseBackground==="function") panel.effectBridge.chooseBackground(); else {panel.browseBackground("");backgroundPicker.open();} } }
-                C.Button { text:"Browse inside PolySwitch…";Layout.fillWidth:true;onClicked:{panel.browseBackground("");backgroundPicker.open();} }
-                C.Label { Layout.fillWidth:true;wrapMode:Text.WordWrap;color:"#ff9dab";text:panel.effectBridge ? panel.effectBridge.pickerError || "" : "";visible:text.length>0 }
+                PlasmaButton { prefs:panel.prefs;artwork:panel.store.themeInfo.artwork;palette:panel.palette; text: "Import background image…"; objectName:"importBackgroundButton"; Layout.fillWidth:true; onClicked: { if(panel.effectBridge && typeof panel.effectBridge.chooseBackground==="function") panel.effectBridge.chooseBackground();  } }
+                C.Label { Layout.fillWidth:true;wrapMode:Text.WordWrap;color:panel.prefs.uiErrorColor;text:panel.effectBridge ? panel.effectBridge.pickerError || "" : "";visible:text.length>0 }
                 SettingsSwitch { text: "Smooth shape changes";keyName:"shapeMorphEnabled";store:panel.store }
                 SliderSetting { Layout.fillWidth:true;label:"Shape transition duration";keyName:"shapeMorphDuration";store:panel.store;from:180;to:1200;step:10;suffix:" ms" }
                 SettingsSwitch { text: "Show imported background"; keyName:"backgroundEnabled";store:panel.store }
@@ -62,10 +104,10 @@ C.Pane {
                     onActivated:index=>panel.store.setValue("backgroundMode",model[index].value)
                 }
                 SliderSetting { Layout.fillWidth:true;label:"Background opacity";keyName:"backgroundOpacity";store:panel.store;from:0;to:100;suffix:"%" }
-                C.Button { text:"Remove background";enabled:panel.store.values.backgroundImage.length>0;onClicked:panel.store.setValue("backgroundImage","") }
-                C.Label { Layout.fillWidth:true;wrapMode:Text.WordWrap;color:"#bfb3bd";text:"Imported images are copied into PolySwitch’s local storage and persist after restarting. Settings remains accessible with the header hidden." }
-                C.Label { text: "FACE CONTENT"; color: "#ff778e"; font.bold: true }
-                C.Label { color: "#fff0f3"; text: "Window display mode" }
+                PlasmaButton { prefs:panel.prefs;artwork:panel.store.themeInfo.artwork;palette:panel.palette; text:"Remove background";enabled:panel.store.values.backgroundImage.length>0;onClicked:panel.store.setValue("backgroundImage","") }
+                C.Label { Layout.fillWidth:true;wrapMode:Text.WordWrap;color:panel.prefs.uiMutedColor;text:"Imported images are copied into PolySwitch’s local storage and persist after restarting. Settings remains accessible with the header hidden." }
+                C.Label { text: "FACE CONTENT"; color: panel.prefs.borderColor; font.bold: true }
+                C.Label { color: panel.prefs.uiTextColor; text: "Window display mode" }
                 SettingsComboBox {
                     id: displayMode
                     implicitHeight: 38
@@ -77,10 +119,12 @@ C.Pane {
                     onActivated: index => panel.store.setValue("previewMode",model[index].value)
                 }
                 SliderSetting { Layout.fillWidth: true; label: "Zoom"; keyName: "zoomPercent"; store: panel.store; from: 50; to: 200; step: 1; suffix: "%" }
-                C.Button { text: "Reset zoom (100%)"; onClicked: panel.store.setValue("zoomPercent",100) }
-                SettingsSwitch { text: "Auto-upright after 1 second"; keyName: "autoUpright"; store: panel.store }
+                PlasmaButton { prefs:panel.prefs;artwork:panel.store.themeInfo.artwork;palette:panel.palette; text: "Reset zoom (100%)"; onClicked: panel.store.setValue("zoomPercent",100) }
+                SettingsSwitch { text: "Auto-upright when idle"; keyName: "autoUpright"; store: panel.store }
+                SliderSetting { Layout.fillWidth:true;label:"Auto-upright idle delay";keyName:"autoUprightDelay";store:panel.store;from:0.2;to:120;step:0.1;suffix:" s" }
+                SliderSetting { Layout.fillWidth:true;label:"Auto-upright roll duration";keyName:"autoUprightDuration";store:panel.store;from:150;to:3000;step:50;suffix:" ms" }
                 SettingsSwitch { text: "Keep spinning after drag"; keyName: "inertiaEnabled"; store: panel.store }
-                C.Label { text: "HOVER HIGHLIGHT"; color: "#ff778e"; font.bold: true }
+                C.Label { text: "HOVER HIGHLIGHT"; color: panel.prefs.borderColor; font.bold: true }
                 SettingsComboBox {
                     objectName: "glowStyleCombo"
                     Layout.fillWidth: true
@@ -93,7 +137,7 @@ C.Pane {
                 ColorSetting { Layout.fillWidth: true; label: "Custom neon color"; keyName: "hoverColor"; store: panel.store }
                 SliderSetting { Layout.fillWidth: true; label: "Glow strength"; keyName: "glowStrength"; store: panel.store; from: 0; to: 100; suffix: "%" }
                 SliderSetting { Layout.fillWidth: true; label: "Glow spread"; keyName: "glowRadius"; store: panel.store; from: 6; to: 48; suffix: " px" }
-                C.Label { text: "APPEARANCE"; color: "#ff778e"; font.bold: true }
+                C.Label { text: "APPEARANCE"; color: panel.prefs.borderColor; font.bold: true }
                 SettingsSwitch { text: "Glass frames and ambient edges"; keyName: "glassFrames"; store: panel.store }
                 ColorSetting { Layout.fillWidth: true; label: "Passive glow color"; keyName: "frameGlowColor"; store: panel.store }
                 SettingsComboBox {
@@ -107,7 +151,7 @@ C.Pane {
                 SliderSetting { Layout.fillWidth: true; label: "Passive glow spread"; keyName: "frameGlowSpread"; store: panel.store; from:6;to:64;suffix:" px" }
                 SliderSetting { Layout.fillWidth: true; label: "Ambient frame glow"; keyName: "frameGlowStrength"; store: panel.store; from: 0; to: 100; suffix: "%" }
                 SliderSetting { Layout.fillWidth: true; label: "Glass reflection"; keyName: "glassSheen"; store: panel.store; from: 0; to: 40; suffix: "%" }
-                C.Button {
+                PlasmaButton { prefs:panel.prefs;artwork:panel.store.themeInfo.artwork;palette:panel.palette;
                     text: "Apply red glass reference look"
                     onClicked: {
                         const values={glassFrames:true,frameGlowStrength:55,frameGlowColor:"#ff183d",frameGlowStyle:"neon",frameGlowSpread:18,glassSheen:16,borderColor:"#ff183d",rimColor:"#0b0a10",faceColor:"#080a10",rimPercent:2,edgePercent:0.5,previewMode:"fill",previewPadding:0,showFaceTitle:false};
@@ -136,7 +180,7 @@ C.Pane {
                     onActivated: index => panel.store.setValue("titlePosition",model[index].value)
                 }
                 SettingsSwitch { text: "Live window previews"; keyName: "livePreviews"; store: panel.store }
-                C.Label { color: "#fff0f3"; text: "Preview quality" }
+                C.Label { color: panel.prefs.uiTextColor; text: "Preview quality" }
                 SettingsComboBox {
                     Layout.fillWidth: true
                     model: [{text:"Low",value:256},{text:"Balanced",value:512},{text:"High",value:640},{text:"Very high",value:1024}]
@@ -145,54 +189,22 @@ C.Pane {
                     onActivated: index => panel.store.setValue("previewSize", model[index].value)
                 }
                 SettingsSwitch { text: "Window title on hover"; keyName: "hoverTitles"; store: panel.store }
-                C.Label { text: "ROTATION"; color: "#ff778e"; font.bold: true }
+                C.Label { text:"INTERFACE COLOR OVERRIDES";color:panel.prefs.borderColor;font.bold:true }
+                ColorSetting { Layout.fillWidth:true;label:"Panel color";keyName:"uiPanelColor";store:panel.store }
+                ColorSetting { Layout.fillWidth:true;label:"Input background";keyName:"uiBaseColor";store:panel.store }
+                ColorSetting { Layout.fillWidth:true;label:"Interface text";keyName:"uiTextColor";store:panel.store }
+                ColorSetting { Layout.fillWidth:true;label:"Secondary text";keyName:"uiMutedColor";store:panel.store }
+                ColorSetting { Layout.fillWidth:true;label:"Button background";keyName:"uiButtonColor";store:panel.store }
+                ColorSetting { Layout.fillWidth:true;label:"Interface borders";keyName:"uiBorderColor";store:panel.store }
+                ColorSetting { Layout.fillWidth:true;label:"Error text";keyName:"uiErrorColor";store:panel.store }
+                ColorSetting { Layout.fillWidth:true;label:"Selected text";keyName:"uiHighlightTextColor";store:panel.store }
+                C.Label { text: "ROTATION"; color: panel.prefs.borderColor; font.bold: true }
                 SliderSetting { Layout.fillWidth: true; label: "Rotation speed"; keyName: "rotationSpeed"; store: panel.store; from: 0.25; to: 2.5; step: 0.05; suffix: "×" }
 
-                C.Button { text: "Reset defaults"; onClicked: panel.store.resetDefaults() }
-                C.Label { text: panel.store.error; visible: text.length > 0; color: "#ff778e"; wrapMode: Text.Wrap; Layout.fillWidth: true }
+
+                C.Label { text: panel.store.error; visible: text.length > 0; color: panel.prefs.borderColor; wrapMode: Text.Wrap; Layout.fillWidth: true }
                 Item { Layout.preferredHeight: 12 }
             }
-        }
-    }
-    C.Popup {
-        id: backgroundPicker
-        objectName:"backgroundPicker"
-        parent: C.Overlay.overlay
-        x:(parent.width-width)/2;y:(parent.height-height)/2
-        width:Math.min(660,parent.width-36);height:Math.min(580,parent.height-36)
-        padding:18;modal:true;focus:true
-        closePolicy:C.Popup.CloseOnEscape
-        background:Rectangle { color:"#18171f";border.color:"#79404f";radius:10 }
-        contentItem: ColumnLayout {
-            spacing:10
-            C.Label { text:"Import background image";font.pixelSize:20;color:"#fff0f3" }
-            RowLayout {
-                Layout.fillWidth:true
-                C.Button { text:"Up";onClicked:panel.browseBackground(panel.backgroundListing.parent) }
-                C.TextField { id:backgroundPath;objectName:"backgroundFolderPath";Layout.fillWidth:true;placeholderText:"Folder path";onAccepted:panel.browseBackground(text) }
-                C.Button { text:"Go";onClicked:panel.browseBackground(backgroundPath.text) }
-            }
-            C.Label { text:"Choose an image to copy into PolySwitch";color:"#bfb3bd" }
-            ListView {
-                id: backgroundFiles
-                objectName:"backgroundFileList"
-                Layout.fillWidth:true;Layout.fillHeight:true;clip:true
-                model:panel.backgroundListing.entries
-                C.ScrollBar.vertical:C.ScrollBar {}
-                delegate:C.ItemDelegate {
-                    required property var modelData
-                    width:backgroundFiles.width;height:38
-                    text:(modelData.directory ? "▸  " : "▧  ")+modelData.name
-                    contentItem:C.Label { text:parent.text;color:"#fff0f3";elide:Text.ElideMiddle;verticalAlignment:Text.AlignVCenter }
-                    background:Rectangle { color:parent.hovered?"#3c2933":"#211f29";radius:4 }
-                    onClicked: {
-                        if(modelData.directory)panel.browseBackground(modelData.url);
-                        else if(panel.store.importBackground(modelData.url))backgroundPicker.close();
-                    }
-                }
-            }
-            C.Label { Layout.fillWidth:true;wrapMode:Text.WordWrap;color:"#ff9dab";text:panel.store.backgroundError || "";visible:text.length>0 }
-            C.Button { text:"Cancel";Layout.alignment:Qt.AlignRight;onClicked:backgroundPicker.close() }
         }
     }
 }

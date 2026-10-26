@@ -14,18 +14,18 @@ C.Switch {
         x: control.leftPadding
         y: (control.height-height)/2
         radius: 12
-        color: control.checked ? "#8f2338" : "#55565e"
-        border.color: control.activeFocus ? "#fff0f3" : (control.checked ? "#c43b53" : "#777983")
+        color: control.checked ? Qt.darker(control.store.values.borderColor,1.6) : control.store.values.uiButtonColor
+        border.color: control.activeFocus ? control.store.values.uiTextColor : control.store.values.uiBorderColor
         Rectangle {
             width: 18; height: 18; radius: 9
             x: control.checked ? parent.width-width-3 : 3
             y: 3
-            color: control.checked ? "#ffe5e9" : "#dedee3"
+            color: control.checked ? "#ffffff" : control.store.values.uiTextColor
         }
     }
     contentItem: C.Label {
         text: control.text
-        color: "#fff0f3"
+        color: control.store.values.uiTextColor
         leftPadding: control.indicator.width + control.spacing
         verticalAlignment: Text.AlignVCenter
     }
