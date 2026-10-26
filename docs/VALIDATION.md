@@ -15,3 +15,7 @@ Integration checks performed before this release in a separate virtual KWin sess
 - Passive glow styles/color/strength/spread, hover styles, portable shader loading, gray dropdown rows, toggle colors and saved preferences.
 
 Screenshots use synthetic test windows, not personal desktop content. This is not a claim of compatibility with all distributions, drivers, Qt versions or Plasma releases. Long-running field testing and packaging for additional distributions remain welcome.
+
+## 0.4.14 header and backgrounds
+
+Core tests verify that imported images are copied and downscaled, remain usable after the original is deleted, and retain header/mode/opacity preferences. An isolated Wayland UI check clicks the header toggle and embedded image picker, imports an image, deletes the source, checks rendered background pixels and visibility, and verifies settings from a fresh process. User preferences/data are isolated for all tests.
