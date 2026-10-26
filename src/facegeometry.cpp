@@ -17,7 +17,7 @@ void FaceGeometry::rebuild() {
             const auto normal=side==0?outward:-outward;
             // Keep source windows upright in the local face plane. Caps use
             // scene -Z as up; the reverse side gets its own non-mirrored basis.
-            const auto preferred=std::abs(normal.y())<0.95f?QVector3D(0,1,0):QVector3D(0,0,-1);
+            const auto preferred=m_face.contains("up")?m_face["up"].value<QVector3D>():std::abs(normal.y())<0.95f?QVector3D(0,1,0):QVector3D(0,0,-1);
             const auto up=(preferred-normal*QVector3D::dotProduct(preferred,normal)).normalized();
             const auto right=QVector3D::crossProduct(up,normal).normalized();
             float minU=std::numeric_limits<float>::max(),minV=minU,maxU=-minU,maxV=-minU;

@@ -14,7 +14,7 @@
 #include <algorithm>
 QVariantMap SettingsStore::defaults(){
     return {{"borderColor","#ef334d"},{"hoverColor","#ff163b"},{"rimColor","#17131b"},
-        {"showHeader",true},{"backgroundImage",QString()},{"backgroundEnabled",true},{"backgroundMode","fill"},{"backgroundOpacity",100.0},{"backgroundColor","#06090f"},{"rimPercent",3.5},{"edgePercent",0.8},
+        {"shapeMorphEnabled",true},{"shapeMorphDuration",650.0},{"showHeader",true},{"backgroundImage",QString()},{"backgroundEnabled",true},{"backgroundMode","fill"},{"backgroundOpacity",100.0},{"backgroundColor","#06090f"},{"rimPercent",3.5},{"edgePercent",0.8},
         {"glassFrames",true},{"frameGlowColor","#ff183d"},{"frameGlowStyle","neon"},{"frameGlowSpread",18.0},{"frameGlowStrength",55.0},{"glassSheen",16.0},{"glowStyle","neon"},{"glowEnabled",true},{"glowStrength",100.0},{"glowRadius",24.0},
         {"autoUpright",false},{"zoomPercent",100.0},{"rotationSpeed",1.0},{"inertiaEnabled",true},{"livePreviews",true},
         {"previewSize",640},{"hoverTitles",true},
@@ -53,7 +53,8 @@ QVariant SettingsStore::normalized(const QString &key,const QVariant &value)cons
         return {};
     }
     double low=0,high=100;
-    if(key=="frameGlowSpread"){low=6;high=64;}
+    if(key=="shapeMorphDuration"){low=180;high=1200;}
+    else if(key=="frameGlowSpread"){low=6;high=64;}
     else if(key=="glassSheen"){low=0;high=40;}
     else if(key=="zoomPercent"){low=50;high=200;}
     else if(key=="titleSize"){low=12;high=64;}

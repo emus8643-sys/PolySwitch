@@ -11,6 +11,7 @@
 #include "prism.h"
 #include "facegeometry.h"
 #include "settingsstore.h"
+#include "backgroundchooser.h"
 #include <effect/quickeffect.h>
 #include <effect/effecthandler.h>
 #include <effect/effectwindow.h>
@@ -37,14 +38,19 @@ public:
 };
 class PolySwitchEffect final : public QuickSceneEffect {
     Q_OBJECT
+    Q_PROPERTY(QString pickerError READ pickerError NOTIFY backgroundPickerFinished)
     Q_PROPERTY(QObject *settings READ settings CONSTANT)
     Q_PROPERTY(QVariantList tasks READ tasks NOTIFY tasksChanged)
     Q_PROPERTY(QString primaryOutputName READ primaryOutputName NOTIFY primaryOutputChanged)
 public:
+    QString pickerError()const{return m_pickerError;}
+    Q_INVOKABLE bool consumeSettingsRequest(){const bool value=m_reopenSettings;m_reopenSettings=false;return value;}
+    Q_INVOKABLE void chooseBackground(){if(m_chooser->active())return;QTimer::singleShot(0,this,[this]{m_chooser->open();});}
     QObject *settings() { return &m_settings; }
     QVariantList tasks() const { return m_tasks; }
     QString primaryOutputName() const { return m_primaryOutput ? m_primaryOutput->name() : QString(); }
 Q_SIGNALS:
+    void backgroundPickerFinished();
     void tasksChanged();
     void primaryOutputChanged();
     void animationTick(double milliseconds);
@@ -62,6 +68,9 @@ public:
         QuickSceneEffect::setRunning(running);
     }
     explicit PolySwitchEffect() {
+        m_chooser=new BackgroundChooser(&m_settings,this);
+        connect(m_chooser,&BackgroundChooser::started,this,[this]{m_settings.flush();setRunning(false);});
+        connect(m_chooser,&BackgroundChooser::finished,this,[this](const QString &error){m_pickerError=error;m_reopenSettings=true;refreshWindows();setRunning(true);Q_EMIT backgroundPickerFinished();});
         qmlRegisterType<PrismGeometry>("PolySwitch.Native", 1, 0, "PrismGeometry");
         qmlRegisterType<FaceGeometry>("PolySwitch.Native", 1, 0, "FaceGeometry");
         setSource(QUrl(QStringLiteral("qrc:/polyswitch4/qml/main.qml")));
@@ -118,6 +127,7 @@ public:
         action->setObjectName(QStringLiteral("PolySwitchNative4Toggle"));
         action->setText(QStringLiteral("PolySwitch Native Stage 4 toggle"));
         connect(action, &QAction::triggered, this, [this] {
+            if(m_chooser->active())return;
             if (isRunning()) { setRunning(false); return; }
             m_settings.reload();
             refreshWindows();
@@ -259,6 +269,9 @@ private:
         }
         if (next != m_tasks) { m_tasks = next; Q_EMIT tasksChanged(); }
     }
+    BackgroundChooser *m_chooser=nullptr;
+    QString m_pickerError;
+    bool m_reopenSettings=false;
     QVariantList m_tasks;
     QTimer m_windowTimer;
     SettingsStore m_settings;
