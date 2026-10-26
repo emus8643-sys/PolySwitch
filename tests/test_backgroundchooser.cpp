@@ -12,10 +12,12 @@
 class Portal:public QObject,protected QDBusContext {
  Q_OBJECT
  Q_CLASSINFO("D-Bus Interface","org.freedesktop.portal.FileChooser")
-public:uint code=0;QString uri;
+public:uint code=0;QString uri;QString lastMethod;
+public Q_SLOTS:
+ QDBusObjectPath SaveFile(const QString &parent,const QString &title,const QVariantMap &options){auto result=OpenFile(parent,title,options);lastMethod="SaveFile";return result;}
 public Q_SLOTS:
  QDBusObjectPath OpenFile(const QString &,const QString &,const QVariantMap &options){
-  QString sender=message().service().mid(1);sender.replace('.','_');const QString path="/org/freedesktop/portal/desktop/request/"+sender+"/"+options["handle_token"].toString();
+  lastMethod="OpenFile";QString sender=message().service().mid(1);sender.replace('.','_');const QString path="/org/freedesktop/portal/desktop/request/"+sender+"/"+options["handle_token"].toString();
   QTimer::singleShot(50,this,[this,path]{auto signal=QDBusMessage::createSignal(path,"org.freedesktop.portal.Request","Response");signal.setArguments({code,QVariantMap{{"uris",QStringList{uri}}}});QDBusConnection::sessionBus().send(signal);});return QDBusObjectPath(path);
  }
 };
@@ -31,7 +33,11 @@ private Q_SLOTS:
   chooser.open();chooser.open();QVERIFY(chooser.active());QCOMPARE(started.count(),1);QTRY_COMPARE(finished.count(),1);QVERIFY(finished[0][0].toString().isEmpty());QVERIFY(!chooser.active());QVERIFY(QFile::exists(QUrl(settings.values()["backgroundImage"].toString()).toLocalFile()));
   const auto saved=settings.values()["backgroundImage"];portal.code=1;chooser.open();QTRY_COMPARE(finished.count(),2);QCOMPARE(settings.values()["backgroundImage"],saved);
   portal.code=0;portal.uri="https://example.com/not-local.png";chooser.open();QTRY_COMPARE(finished.count(),3);QVERIFY(!finished[2][0].toString().isEmpty());QCOMPARE(settings.values()["backgroundImage"],saved);
-  bus.unregisterObject("/org/freedesktop/portal/desktop");chooser.open();QTRY_COMPARE(finished.count(),4);QVERIFY(!finished[3][0].toString().isEmpty());QVERIFY(!chooser.active());
+  const auto profile=settings.savePreset("Portal look");QVERIFY(!profile.isEmpty());
+  const auto exportFile=temp.path()+"/profile.json";portal.uri=QUrl::fromLocalFile(exportFile).toString();chooser.exportProfile(profile);QTRY_COMPARE(finished.count(),4);QVERIFY(finished[3][0].toString().isEmpty());QCOMPARE(portal.lastMethod,QStringLiteral("SaveFile"));QVERIFY(QFile::exists(exportFile));
+  const auto count=settings.presets().size();const auto appearance=settings.values();chooser.importProfile();QTRY_COMPARE(finished.count(),5);QVERIFY(finished[4][0].toString().isEmpty());QCOMPARE(portal.lastMethod,QStringLiteral("OpenFile"));QCOMPARE(settings.presets().size(),count+1);QCOMPARE(settings.values(),appearance);
+  portal.code=1;chooser.exportProfile(profile);QTRY_COMPARE(finished.count(),6);QCOMPARE(settings.presets().size(),count+1);portal.code=0;
+  bus.unregisterObject("/org/freedesktop/portal/desktop");chooser.open();QTRY_COMPARE(finished.count(),7);QVERIFY(!finished[6][0].toString().isEmpty());QVERIFY(!chooser.active());
  }
 };
 QTEST_MAIN(PickerTests)

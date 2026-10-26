@@ -7,6 +7,9 @@
 #include <QTemporaryDir>
 #include <QImage>
 #include <QImageReader>
+#include <QSaveFile>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include "prism.h"
 #include "settingsstore.h"
 
@@ -110,6 +113,89 @@ private Q_SLOTS:
         });
         for(int count:{7,12,20,5}){geometry.setTaskCount(count);QTRY_VERIFY_WITH_TIMEOUT(!geometry.morphing(),600);}
         QVERIFY(frames>8);QVERIFY(valid);
+    }
+    void kdeThemeWatchingModesAndOverrides() {
+        auto theme=[&](bool dark,const QString &accent,const QString &name){
+            QSaveFile file(config.path()+"/kdeglobals");QVERIFY(file.open(QIODevice::WriteOnly));
+            file.write(("[General]\nColorScheme="+name+"\nAccentColor="+accent+"\n[Colors:Window]\nBackgroundNormal="+(dark?"24,24,28":"245,245,247")+"\nForegroundNormal="+(dark?"245,245,245":"24,24,24")+"\n[Colors:View]\nBackgroundNormal="+(dark?"16,16,19":"255,255,255")+"\n").toUtf8());QVERIFY(file.commit());
+        };
+        theme(false,"10,90,180","TestLight");SettingsStore settings;settings.resetDefaults();
+        QVERIFY(settings.values()["followKdeTheme"].toBool());QCOMPARE(settings.values()["themeMode"].toString(),QStringLiteral("automatic"));
+        QVERIFY(!settings.themeInfo()["dark"].toBool());QCOMPARE(settings.themeInfo()["schemeName"].toString(),QStringLiteral("TestLight"));QCOMPARE(settings.values()["borderColor"].toString(),QStringLiteral("#0a5ab4"));
+        QVERIFY(settings.values()["frameGlowColor"]!=settings.values()["borderColor"]);
+        settings.setValue("borderColor",QStringLiteral("#112233"));QCOMPARE(settings.values()["themeMode"].toString(),QStringLiteral("mixed"));
+        theme(true,"204,34,170","TestDark");QTRY_VERIFY(settings.themeInfo()["dark"].toBool());
+        QCOMPARE(settings.values()["borderColor"].toString(),QStringLiteral("#112233"));QCOMPARE(settings.themeInfo()["accent"].toString(),QStringLiteral("#cc22aa"));
+        settings.setValue("themeMode",QStringLiteral("automatic"));QCOMPARE(settings.values()["borderColor"].toString(),QStringLiteral("#cc22aa"));
+        settings.setValue("themeMode",QStringLiteral("mixed"));QCOMPARE(settings.values()["borderColor"].toString(),QStringLiteral("#112233"));
+        settings.setValue("followKdeTheme",false);QVERIFY(!settings.values()["followKdeTheme"].toBool());
+        const auto manual=settings.values();theme(false,"20,150,100","ChangedWhileManual");QTRY_VERIFY(!settings.themeInfo()["dark"].toBool());QCOMPARE(settings.values(),manual);
+        settings.setValue("followKdeTheme",true);QCOMPARE(settings.values()["themeMode"].toString(),QStringLiteral("mixed"));
+        settings.clearThemeOverrides();QCOMPARE(settings.values()["borderColor"].toString(),QStringLiteral("#149664"));
+        settings.setValue("headerOpacity",67);QCOMPARE(settings.values()["headerOpacity"].toInt(),67);QVERIFY(settings.values()["themeOverrides"].toStringList().contains("headerOpacity"));
+        settings.setThemeOverride("borderColor",true);settings.setValue("borderColor",QStringLiteral("#445566"));QVERIFY(settings.flush());
+        SettingsStore readback;QCOMPARE(readback.values()["borderColor"].toString(),QStringLiteral("#445566"));QCOMPARE(readback.values()["headerOpacity"].toInt(),67);
+        readback.setThemeOverride("borderColor",false);QCOMPARE(readback.values()["borderColor"].toString(),QStringLiteral("#149664"));
+        QSaveFile plasma(config.path()+"/plasmarc");QVERIFY(plasma.open(QIODevice::WriteOnly));plasma.write("[Theme]\nname=SeparatePlasmaStyle\n");QVERIFY(plasma.commit());QTRY_COMPARE(readback.themeInfo()["plasmaTheme"].toString(),QStringLiteral("SeparatePlasmaStyle"));
+        QCOMPARE(readback.values()["borderColor"].toString(),QStringLiteral("#149664"));
+    }
+    void plasmaArtworkAndUprightPreferences() {
+        const auto root=config.path()+"/data/plasma/desktoptheme/TestArtwork";
+        QVERIFY(QDir().mkpath(root+"/opaque/dialogs"));
+        auto write=[](const QString &path,const QByteArray &data){QSaveFile file(path);return file.open(QIODevice::WriteOnly)&&file.write(data)==data.size()&&file.commit();};
+        QVERIFY(write(root+"/opaque/dialogs/background.svg","<svg xmlns=\"http://www.w3.org/2000/svg\"/>"));
+        QVERIFY(write(root+"/colors","[Colors:Window]\nBackgroundNormal=12,12,14\nForegroundNormal=245,245,245\n[Colors:Selection]\nBackgroundNormal=100,20,200\n"));
+        QVERIFY(write(config.path()+"/plasmarc","[Theme]\nname=TestArtwork\n"));
+        SettingsStore settings;settings.resetDefaults();
+        settings.setValue("plasmaArtworkVariant",QStringLiteral("opaque"));
+        QCOMPARE(settings.themeInfo()["artwork"].toMap()["panel"].toString(),root+"/opaque/dialogs/background.svg");
+        const auto applicationAccent=settings.values()["borderColor"];
+        settings.setValue("themeColorSource",QStringLiteral("plasma"));
+        QCOMPARE(settings.values()["borderColor"].toString(),QStringLiteral("#6414c8"));
+        QVERIFY(settings.themeInfo()["dark"].toBool());
+        settings.setValue("autoUprightDelay",500);QCOMPARE(settings.values()["autoUprightDelay"].toDouble(),120.0);
+        settings.setValue("autoUprightDuration",2);QCOMPARE(settings.values()["autoUprightDuration"].toDouble(),150.0);
+        settings.setValue("autoUprightDelay",2.7);settings.setValue("autoUprightDuration",950.0);QVERIFY(settings.flush());
+        SettingsStore readback;QCOMPARE(readback.values()["borderColor"].toString(),QStringLiteral("#6414c8"));
+        QCOMPARE(readback.values()["autoUprightDelay"].toDouble(),2.7);QCOMPARE(readback.values()["autoUprightDuration"].toDouble(),950.0);
+        QVERIFY(write(root+"/colors","[Colors:Selection]\nBackgroundNormal=10,100,30\n"));
+        QTRY_COMPARE(readback.values()["borderColor"].toString(),QStringLiteral("#0a641e"));
+        readback.resetDefaults();QCOMPARE(readback.values()["borderColor"],applicationAccent);
+        QVERIFY(write(config.path()+"/plasmarc","[Theme]\nname=MissingStyle\n"));
+        QTRY_VERIFY(readback.themeInfo()["plasmaArtworkFallback"].toBool());
+        QVERIFY(!readback.themeInfo()["artwork"].toMap()["panel"].toString().startsWith(root));
+    }
+    void profilesPortableBackgroundRecoveryAndValidation() {
+        SettingsStore settings;settings.resetDefaults();settings.setValue("onboardingCompleted",true);
+        settings.setValue("themeMode",QStringLiteral("manual"));settings.setValue("borderColor",QStringLiteral("#123456"));
+        settings.setValue("autoUprightDelay",7.0);
+        QImage image(80,60,QImage::Format_RGB32);image.fill(Qt::blue);
+        const auto original=config.path()+"/profile-original.png";QVERIFY(image.save(original));QVERIFY(settings.importBackground(QUrl::fromLocalFile(original)));
+        const auto first=settings.savePreset("My blue look");QVERIFY(!first.isEmpty());
+        const auto exported=config.path()+"/portable-profile.json";QVERIFY(settings.exportPreset(first,QUrl::fromLocalFile(exported)));
+        QFile file(exported);QVERIFY(file.open(QIODevice::ReadOnly));const auto bytes=file.readAll();QVERIFY(!bytes.contains(config.path().toUtf8()));QVERIFY(!bytes.contains("backgroundImage"));
+        QVERIFY(QFile::remove(original));image.fill(Qt::green);QVERIFY(image.save(original));QVERIFY(settings.importBackground(QUrl::fromLocalFile(original)));
+        settings.setValue("borderColor",QStringLiteral("#abcdef"));settings.setValue("autoUprightDelay",11.0);
+        const auto before=settings.values();const auto beforeCount=settings.presets().size();
+        QVERIFY(settings.importPreset(QUrl::fromLocalFile(exported)));QCOMPARE(settings.values(),before);QCOMPARE(settings.presets().size(),beforeCount+1);
+        QVERIFY(settings.applyPreset(first));QCOMPARE(settings.values()["borderColor"].toString(),QStringLiteral("#123456"));
+        QCOMPARE(settings.values()["autoUprightDelay"].toDouble(),11.0);QVERIFY(settings.values()["onboardingCompleted"].toBool());
+        QImage restored(QUrl(settings.values()["backgroundImage"].toString()).toLocalFile());QCOMPARE(restored.pixelColor(0,0),QColor(Qt::blue));
+        QVERIFY(settings.canUndoAppearance());QVERIFY(settings.undoAppearance());QCOMPARE(settings.values()["borderColor"].toString(),QStringLiteral("#abcdef"));
+        QImage undone(QUrl(settings.values()["backgroundImage"].toString()).toLocalFile());QCOMPARE(undone.pixelColor(0,0),QColor(Qt::green));
+        QVERIFY(!settings.canUndoAppearance());QVERIFY(settings.resetAppearance());QVERIFY(settings.values()["onboardingCompleted"].toBool());QCOMPARE(settings.values()["autoUprightDelay"].toDouble(),11.0);
+        QVERIFY(settings.undoAppearance());QCOMPARE(settings.values()["borderColor"].toString(),QStringLiteral("#abcdef"));
+        const auto duplicate=settings.savePreset("My blue look");QVERIFY(!duplicate.isEmpty());QVERIFY(first!=duplicate);QVERIFY(settings.deletePreset(duplicate));
+        QVERIFY(!settings.deletePreset("../../polyswitchrc"));QVERIFY(settings.savePreset("   ").isEmpty());
+        const auto stable=settings.values();const auto stableCount=settings.presets().size();
+        auto document=QJsonDocument::fromJson(bytes).object();auto entries=document["settings"].toObject();entries["onboardingCompleted"]=false;document["settings"]=entries;
+        const auto invalid=config.path()+"/invalid-profile.json";
+        auto write=[&](const QJsonObject &object){QSaveFile out(invalid);QVERIFY(out.open(QIODevice::WriteOnly));out.write(QJsonDocument(object).toJson());QVERIFY(out.commit());};
+        write(document);QVERIFY(!settings.importPreset(QUrl::fromLocalFile(invalid)));QCOMPARE(settings.values(),stable);QCOMPARE(settings.presets().size(),stableCount);
+        document=QJsonDocument::fromJson(bytes).object();document["backgroundPng"]="broken!!!";write(document);QVERIFY(!settings.importPreset(QUrl::fromLocalFile(invalid)));
+        document=QJsonDocument::fromJson(bytes).object();document["version"]=999;write(document);QVERIFY(!settings.importPreset(QUrl::fromLocalFile(invalid)));
+        QCOMPARE(settings.values(),stable);QCOMPARE(settings.presets().size(),stableCount);QVERIFY(settings.flush());
+        SettingsStore readback;QCOMPARE(readback.presets().size(),stableCount);QVERIFY(readback.values()["onboardingCompleted"].toBool());
     }
     void importedBackgroundSurvivesOriginalRemoval() {
         const QString original=config.path()+"/test background.png";
