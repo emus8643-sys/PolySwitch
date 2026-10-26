@@ -1,3 +1,10 @@
+# 0.4.15 — native image picker and live shape morphs
+
+- Open the desktop portal image picker while safely releasing switcher input; return to Settings after selection/cancel.
+- Keep the embedded browser as a fallback. Imported backgrounds still persist.
+- Smoothly morph task shapes with stable window identities, nearby face assignments and interruptible transitions.
+- Keep closed faces flat and joined; add transition on/off and duration controls.
+
 # 0.4.14 — personal backgrounds and optional header
 
 - Persistently hide the header while keeping Settings/search accessible.

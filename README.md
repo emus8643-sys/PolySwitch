@@ -27,7 +27,7 @@ Application windows only; individual browser tabs are not enumerated.
 
 The [Releases page](https://github.com/windex-drinker/PolySwitch/releases) provides a binary archive for **KDE neon 24.04, x86_64, KWin 6.8.1, Qt 6.11.1**. This download does not require a compiler. Other systems should build from source below. The installer refuses other versions; matching version numbers alone cannot guarantee compatibility with distribution patches.
 
-Download and extract `PolySwitch-0.4.14-neon24.04-kwin6.8.1-qt6.11.1-x86_64.tar.gz`, open a terminal in the extracted folder, then run:
+Download and extract `PolySwitch-0.4.15-neon24.04-kwin6.8.1-qt6.11.1-x86_64.tar.gz`, open a terminal in the extracted folder, then run:
 
 ```sh
 ./install-binary.sh --check-only
@@ -74,9 +74,17 @@ This is currently a compiled native effect, not a one-click KDE Store package.
 [1000026637.webm](https://github.com/user-attachments/assets/be88ae2f-02fd-43cb-a2a5-f82db63d1585)
 
 
+## Smooth live shape changes
+
+As windows open or close, existing tasks keep their identities and move to nearby destination faces. Closed solids morph by continuously moving their boundary planes, so their faces stay joined and flat while new faces grow into place. Open rings unfold between arrangements. If another window changes during a transition, the motion continues from the current pose. Rotation/zoom stay available; face activation waits for the shape to settle.
+
+**Smooth shape changes** and **Shape transition duration** (180–1200 ms; default 650 ms) are available in Settings. The system image picker uses the desktop portal (`xdg-desktop-portal` plus the KDE backend on Plasma).
+
+![Live shape morph using synthetic demo windows](docs/live-shape-morph.gif)
+
 ## Header and personal backgrounds
 
-In Settings, turn **Show header** off to hide the title/instructions bar; the search field and Settings button remain available. Use **Import background image…**, browse folders (or enter a folder path), and select an image. PolySwitch saves its own PNG copy under `~/.local/share/polyswitch/backgrounds/`, so moving or deleting the original does not break it. Images larger than 4096 pixels per side are downscaled. The picker accepts local images only; it does not upload them anywhere.
+In Settings, turn **Show header** off to hide the title/instructions bar; the search field and Settings button remain available. Use **Import background image…** to open KDE’s normal file-selection dialog, with its usual folder navigation and previews. PolySwitch temporarily closes and releases its input while the dialog is open, then returns to Settings after selection or Cancel. If a system portal is unavailable, **Browse inside PolySwitch…** provides an embedded fallback. PolySwitch saves its own PNG copy under `~/.local/share/polyswitch/backgrounds/`, so moving or deleting the original does not break it. Images larger than 4096 pixels per side are downscaled. The picker accepts local images only; it does not upload them anywhere.
 
 Choose fill, fit, or stretch and adjust background opacity. **Show imported background** temporarily disables it; **Remove background** returns to the background color. Header/background preferences are saved automatically and restored on the next session.
 
