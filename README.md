@@ -77,7 +77,7 @@ This is currently a compiled native effect, not a one-click KDE Store package.
 [1000026637.webm](https://github.com/user-attachments/assets/be88ae2f-02fd-43cb-a2a5-f82db63d1585)
 
 
-## KDE theme following (local 0.4.16 update)
+## KDE theme and Plasma artwork
 
 **Follow KDE Theme** is enabled by default. Automatic mode reads the active KDE application color scheme and accent, detects light/dark colors, and adapts frames, highlights, glow, lighting, text, panels and translucency. KDE color changes apply live without restarting PolySwitch. Imported image backgrounds remain your own image.
 
@@ -87,9 +87,8 @@ This is currently a compiled native effect, not a one-click KDE Store package.
 
 Glow colors can use the accent, its complementary hue, or an analogous hue. Transparency and lighting controls also become mixed-mode overrides when edited. There are separate overrides for interface text/panels, frame/face/title colors and lighting. Mode and overrides persist across sessions.
 
-The Plasma desktop style is detected separately. See [Plasma style investigation](docs/PLASMA-THEMES.md); SVG widget artwork is not imported into the 3D renderer.
+The Plasma desktop style is detected separately. Enable Use Plasma SVG artwork to style panels, the header, search and button accents. Application and Plasma style colors are selectable separately. The 3D faces retain their live previews and polygon glow. See [Plasma artwork integration](docs/PLASMA-THEMES.md).
 
-This local update has not been uploaded to GitHub.
 
 ## Smooth live shape changes
 
