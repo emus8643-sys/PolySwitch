@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-project(polyswitch_native4 VERSION 0.4.13 LANGUAGES CXX)
+project(polyswitch_native4 VERSION 0.4.14 LANGUAGES CXX)
 set(BUILD_SHARED_LIBS ON)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)

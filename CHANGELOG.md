@@ -1,3 +1,9 @@
+# 0.4.14 — personal backgrounds and optional header
+
+- Persistently hide the header while keeping Settings/search accessible.
+- Import local background images into managed storage so they survive moving/deleting the original.
+- Add fill/fit/stretch, opacity and background visibility controls.
+
 # 0.4.13 — first public experimental release
 
 - Fix idle upright alignment with Settings open; use elapsed native input time rather than accumulated animation steps.

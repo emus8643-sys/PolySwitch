@@ -17,6 +17,7 @@ A 3D application-window switcher for KDE Plasma Wayland. Each window gets a live
 - Optional automatic upright alignment after one second of idle input, including with Settings open.
 - Independent passive glow color, strength, spread and styles: neon, soft bloom, breathing neon and radiant edges.
 - Separate hover effects: Neon, Sunlight, Ice and Breathing Neon.
+- Optional header and imported local backgrounds with fill/fit/stretch and opacity controls; both persist across sessions.
 - Fit/fill/title-only faces; customizable colors, titles, borders, reflection, opacity and preview quality.
 - Primary-monitor display with normal mouse and keyboard use on other monitors.
 
@@ -24,9 +25,9 @@ Application windows only; individual browser tabs are not enumerated.
 
 ## Download a prebuilt release
 
-The [Releases page](https://github.com/emus8643-sys/PolySwitch/releases) provides a binary archive for **KDE neon 24.04, x86_64, KWin 6.8.1, Qt 6.11.1**. This download does not require a compiler. Other systems should build from source below. The installer refuses other versions; matching version numbers alone cannot guarantee compatibility with distribution patches.
+The [Releases page](https://github.com/windex-drinker/PolySwitch/releases) provides a binary archive for **KDE neon 24.04, x86_64, KWin 6.8.1, Qt 6.11.1**. This download does not require a compiler. Other systems should build from source below. The installer refuses other versions; matching version numbers alone cannot guarantee compatibility with distribution patches.
 
-Download and extract `PolySwitch-0.4.13-neon24.04-kwin6.8.1-qt6.11.1-x86_64.tar.gz`, open a terminal in the extracted folder, then run:
+Download and extract `PolySwitch-0.4.14-neon24.04-kwin6.8.1-qt6.11.1-x86_64.tar.gz`, open a terminal in the extracted folder, then run:
 
 ```sh
 ./install-binary.sh --check-only
@@ -51,7 +52,7 @@ sudo apt install build-essential cmake extra-cmake-modules qt6-base-dev \
 Package names/runtime packaging vary by distribution. Older KWin versions may require code changes.
 
 ```sh
-git clone https://github.com/emus8643-sys/PolySwitch.git
+git clone https://github.com/windex-drinker/PolySwitch.git
 cd PolySwitch
 chmod +x update.sh disable.sh rollback.sh uninstall.sh
 ./update.sh --build-only
@@ -72,6 +73,14 @@ This is currently a compiled native effect, not a one-click KDE Store package.
 
 [1000026637.webm](https://github.com/user-attachments/assets/be88ae2f-02fd-43cb-a2a5-f82db63d1585)
 
+
+## Header and personal backgrounds
+
+In Settings, turn **Show header** off to hide the title/instructions bar; the search field and Settings button remain available. Use **Import background image…**, browse folders (or enter a folder path), and select an image. PolySwitch saves its own PNG copy under `~/.local/share/polyswitch/backgrounds/`, so moving or deleting the original does not break it. Images larger than 4096 pixels per side are downscaled. The picker accepts local images only; it does not upload them anywhere.
+
+Choose fill, fit, or stretch and adjust background opacity. **Show imported background** temporarily disables it; **Remove background** returns to the background color. Header/background preferences are saved automatically and restored on the next session.
+
+![Header hidden with an imported background](docs/headerless-background.png)
 
 ## Controls
 

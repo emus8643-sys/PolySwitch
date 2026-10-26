@@ -25,5 +25,5 @@ if [[ -f "$target" ]]; then
     printf '%s\n' "$backup" > "$state_dir/latest-backup"
 fi
 if sudo -n true 2>/dev/null; then sudo install -Dm755 "$plugin" "$target"; else pkexec /usr/bin/install -Dm755 "$plugin" "$target"; fi
-printf '%s\n' '0.4.13' > "$state_dir/installed-version"
+printf '%s\n' '0.4.14' > "$state_dir/installed-version"
 echo 'Installed. Save work, sign out/in normally, then enable PolySwitch in Desktop Effects. Do not restart KWin manually.'
