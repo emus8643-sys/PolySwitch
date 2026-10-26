@@ -5,6 +5,8 @@
 #include <QQmlEngine>
 #include <QQuaternion>
 #include <QTemporaryDir>
+#include <QImage>
+#include <QImageReader>
 #include "prism.h"
 #include "settingsstore.h"
 
@@ -15,6 +17,7 @@ private Q_SLOTS:
     void initTestCase() {
         QVERIFY(config.isValid());
         qputenv("XDG_CONFIG_HOME",config.path().toUtf8());
+        qputenv("XDG_DATA_HOME",(config.path()+"/data").toUtf8());
     }
     void geometryCounts() {
         for(int count=0;count<=64;++count) {
@@ -71,6 +74,37 @@ private Q_SLOTS:
         QCOMPARE(readback.values()["frameGlowColor"].toString(),QStringLiteral("#46bbff"));
         QVERIFY(readback.values()["autoUpright"].toBool());
         QVERIFY(QFile::exists(config.path()+"/polyswitchrc"));
+    }
+    void importedBackgroundSurvivesOriginalRemoval() {
+        const QString original=config.path()+"/test background.png";
+        QImage image(4200,2100,QImage::Format_RGB32);image.fill(QColor("#4477aa"));
+        QVERIFY(image.save(original));
+        QString imported;
+        {
+            SettingsStore settings;
+            QVERIFY(!settings.importBackground(QUrl("https://example.com/image.png")));
+            QVERIFY(!settings.setValue("backgroundImage",QStringLiteral("https://example.com/image.png")));
+            QVERIFY(!settings.setValue("backgroundMode",QStringLiteral("invalid")));
+            QVERIFY(settings.importBackground(QUrl::fromLocalFile(original)));
+            imported=QUrl(settings.values()["backgroundImage"].toString()).toLocalFile();
+            QVERIFY(imported!=original);
+            QVERIFY(QFile::exists(imported));
+            QCOMPARE(QImageReader(imported).size(),QSize(4096,2048));
+            QVERIFY(settings.backgroundError().isEmpty());
+            QVERIFY(settings.setValue("showHeader",false));
+            QVERIFY(settings.setValue("backgroundMode",QStringLiteral("fit")));
+            QVERIFY(settings.setValue("backgroundOpacity",64));
+            QVERIFY(settings.flush());
+        }
+        QVERIFY(QFile::remove(original));
+        SettingsStore readback;
+        QVERIFY(!readback.values()["showHeader"].toBool());
+        QCOMPARE(readback.values()["backgroundMode"].toString(),QStringLiteral("fit"));
+        QCOMPARE(readback.values()["backgroundOpacity"].toInt(),64);
+        QCOMPARE(QUrl(readback.values()["backgroundImage"].toString()).toLocalFile(),imported);
+        QVERIFY(!QImage(imported).isNull());
+        const auto entries=readback.backgroundFolder(QUrl::fromLocalFile(QFileInfo(imported).absolutePath()))["entries"].toList();
+        QVERIFY(!entries.isEmpty());
     }
 };
 QTEST_MAIN(CoreTests)
