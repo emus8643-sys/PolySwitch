@@ -191,6 +191,17 @@ Item {
 
     // Geometry, label anchors and picking share the same polygon definitions.
     Rectangle { anchors.fill: parent; color: root.prefs.backgroundColor }
+    Image {
+        objectName: "customBackground"
+        anchors.fill: parent
+        visible: root.prefs.backgroundEnabled && root.prefs.backgroundImage.length>0
+        source: root.prefs.backgroundImage
+        asynchronous: true
+        cache: false
+        sourceSize: Qt.size(4096,4096)
+        fillMode: root.prefs.backgroundMode==="fit" ? Image.PreserveAspectFit : root.prefs.backgroundMode==="stretch" ? Image.Stretch : Image.PreserveAspectCrop
+        opacity: root.prefs.backgroundOpacity/100
+    }
     Rectangle {
         anchors.fill: parent
         color: "transparent"
@@ -206,7 +217,7 @@ Item {
             clipFar: 3000
         }
         environment: SceneEnvironment {
-            backgroundMode: SceneEnvironment.Color
+            backgroundMode: SceneEnvironment.Transparent
             clearColor: root.prefs.backgroundColor
             antialiasingMode: SceneEnvironment.MSAA
             antialiasingQuality: SceneEnvironment.High
@@ -483,6 +494,8 @@ Item {
     }
 
     Rectangle {
+        objectName: "switcherHeader"
+        visible: root.prefs.showHeader
         anchors.top: parent.top
         anchors.left: parent.left
         anchors.right: parent.right
@@ -493,7 +506,7 @@ Item {
             anchors.left: parent.left; anchors.leftMargin: 22
             anchors.verticalCenter: parent.verticalCenter
             spacing: 18
-            Text { text: "POLYSWITCH  /  STAGE 4.13"; color: "#fff0f3"; font.bold: true; font.pixelSize: 17 }
+            Text { text: "POLYSWITCH  /  STAGE 4.14"; color: "#fff0f3"; font.bold: true; font.pixelSize: 17 }
             Text { text: root.nativeWindowCount + " WINDOWS"; color: "#ff5b73"; font.pixelSize: 14 }
             Text { text: "Wheel zoom · RMB rotate · Arrows select · Enter switch · Esc close"; color: "#9fa8b7"; font.pixelSize: 12 }
         }
@@ -503,8 +516,8 @@ Item {
         id: searchField
         objectName: "taskSearchField"
         z: 9
-        x: 22; y: 66
-        width: Math.min(390,root.width-44); height: 40
+        x: 22; y: root.prefs.showHeader ? 66 : 12
+        width: Math.min(390,root.width-(root.prefs.showHeader ? 44 : 160)); height: 40
         placeholderText: "Type to find a task…"
         color: "#fff0f3"
         placeholderTextColor: "#b5a9b4"
@@ -530,7 +543,7 @@ Item {
         }
     }
     Text {
-        z: 9; x: 26; y: 112
+        z: 9; x: 26; y: searchField.y+46
         width: searchField.width
         visible: root.searchQuery.trim().length>0
         text: root.searchMatches.length ? root.searchMatches.length+" matches · ↑/↓ browse · Enter switch" : "No matching windows"

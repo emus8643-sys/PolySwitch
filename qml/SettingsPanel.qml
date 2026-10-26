@@ -8,6 +8,11 @@ C.Pane {
     id: panel
     required property var store
     signal closeRequested()
+    property var backgroundListing: ({entries:[]})
+    function browseBackground(folder) {
+        backgroundListing=store.backgroundFolder(folder || "");
+        backgroundPath.text=backgroundListing.path;
+    }
     padding: 18
     palette.window: "#14131c"
     palette.text: "#fff0f3"
@@ -40,6 +45,20 @@ C.Pane {
                 id: settingsColumn
                 width: settingsScroll.availableWidth
                 spacing: 16
+                C.Label { text: "HEADER AND BACKGROUND"; color: "#ff778e"; font.bold: true }
+                SettingsSwitch { text: "Show header"; keyName: "showHeader"; store: panel.store; objectName:"showHeaderSwitch" }
+                C.Button { text: "Import background image…"; objectName:"importBackgroundButton"; Layout.fillWidth:true; onClicked: { panel.browseBackground(""); backgroundPicker.open(); } }
+                SettingsSwitch { text: "Show imported background"; keyName:"backgroundEnabled";store:panel.store }
+                SettingsComboBox {
+                    objectName:"backgroundModeCombo";Layout.fillWidth:true
+                    model:[{text:"Background: fill screen",value:"fill"},{text:"Background: fit entire image",value:"fit"},{text:"Background: stretch",value:"stretch"}]
+                    textRole:"text"
+                    currentIndex:model.findIndex(option=>option.value===panel.store.values.backgroundMode)
+                    onActivated:index=>panel.store.setValue("backgroundMode",model[index].value)
+                }
+                SliderSetting { Layout.fillWidth:true;label:"Background opacity";keyName:"backgroundOpacity";store:panel.store;from:0;to:100;suffix:"%" }
+                C.Button { text:"Remove background";enabled:panel.store.values.backgroundImage.length>0;onClicked:panel.store.setValue("backgroundImage","") }
+                C.Label { Layout.fillWidth:true;wrapMode:Text.WordWrap;color:"#bfb3bd";text:"Imported images are copied into PolySwitch’s local storage and persist after restarting. Settings remains accessible with the header hidden." }
                 C.Label { text: "FACE CONTENT"; color: "#ff778e"; font.bold: true }
                 C.Label { color: "#fff0f3"; text: "Window display mode" }
                 SettingsComboBox {
@@ -128,6 +147,47 @@ C.Pane {
                 C.Label { text: panel.store.error; visible: text.length > 0; color: "#ff778e"; wrapMode: Text.Wrap; Layout.fillWidth: true }
                 Item { Layout.preferredHeight: 12 }
             }
+        }
+    }
+    C.Popup {
+        id: backgroundPicker
+        objectName:"backgroundPicker"
+        parent: C.Overlay.overlay
+        x:(parent.width-width)/2;y:(parent.height-height)/2
+        width:Math.min(660,parent.width-36);height:Math.min(580,parent.height-36)
+        padding:18;modal:true;focus:true
+        closePolicy:C.Popup.CloseOnEscape
+        background:Rectangle { color:"#18171f";border.color:"#79404f";radius:10 }
+        contentItem: ColumnLayout {
+            spacing:10
+            C.Label { text:"Import background image";font.pixelSize:20;color:"#fff0f3" }
+            RowLayout {
+                Layout.fillWidth:true
+                C.Button { text:"Up";onClicked:panel.browseBackground(panel.backgroundListing.parent) }
+                C.TextField { id:backgroundPath;objectName:"backgroundFolderPath";Layout.fillWidth:true;placeholderText:"Folder path";onAccepted:panel.browseBackground(text) }
+                C.Button { text:"Go";onClicked:panel.browseBackground(backgroundPath.text) }
+            }
+            C.Label { text:"Choose an image to copy into PolySwitch";color:"#bfb3bd" }
+            ListView {
+                id: backgroundFiles
+                objectName:"backgroundFileList"
+                Layout.fillWidth:true;Layout.fillHeight:true;clip:true
+                model:panel.backgroundListing.entries
+                C.ScrollBar.vertical:C.ScrollBar {}
+                delegate:C.ItemDelegate {
+                    required property var modelData
+                    width:backgroundFiles.width;height:38
+                    text:(modelData.directory ? "▸  " : "▧  ")+modelData.name
+                    contentItem:C.Label { text:parent.text;color:"#fff0f3";elide:Text.ElideMiddle;verticalAlignment:Text.AlignVCenter }
+                    background:Rectangle { color:parent.hovered?"#3c2933":"#211f29";radius:4 }
+                    onClicked: {
+                        if(modelData.directory)panel.browseBackground(modelData.url);
+                        else if(panel.store.importBackground(modelData.url))backgroundPicker.close();
+                    }
+                }
+            }
+            C.Label { Layout.fillWidth:true;wrapMode:Text.WordWrap;color:"#ff9dab";text:panel.store.backgroundError || "";visible:text.length>0 }
+            C.Button { text:"Cancel";Layout.alignment:Qt.AlignRight;onClicked:backgroundPicker.close() }
         }
     }
 }
