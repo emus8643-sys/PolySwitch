@@ -11,12 +11,16 @@ public:
     explicit BackgroundChooser(SettingsStore *store,QObject *parent=nullptr);
     bool active()const{return m_active;}
     void open();
+    void importProfile();
+    void exportProfile(const QString &id);
 Q_SIGNALS:
     void started();
     void finished(const QString &error);
 private Q_SLOTS:
     void response(uint code,const QVariantMap &results);
 private:
+    void start(const QString &mode,const QString &id=QString());
+    QString m_mode,m_profileId;
     void complete(const QString &error);
     SettingsStore *m_store;
     QString m_request;

@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 PolySwitch contributors
+#include <QStandardPaths>
+#include <QDesktopServices>
+#include <KConfigGroup>
 #include <KGlobalAccel>
 #include <workspace.h>
 #include <input_event.h>
@@ -46,6 +49,10 @@ public:
     QString pickerError()const{return m_pickerError;}
     Q_INVOKABLE bool consumeSettingsRequest(){const bool value=m_reopenSettings;m_reopenSettings=false;return value;}
     Q_INVOKABLE void chooseBackground(){if(m_chooser->active())return;QTimer::singleShot(0,this,[this]{m_chooser->open();});}
+    Q_INVOKABLE void importProfile(){if(!m_chooser->active())QTimer::singleShot(0,this,[this]{m_chooser->importProfile();});}
+    Q_INVOKABLE void exportProfile(const QString &id){if(!m_chooser->active())QTimer::singleShot(0,this,[this,id]{m_chooser->exportProfile(id);});}
+    Q_INVOKABLE void disablePolySwitch(){QTimer::singleShot(0,this,[this]{m_settings.flush();KConfigGroup plugins(KSharedConfig::openConfig("kwinrc"),"Plugins");plugins.writeEntry("polyswitch_native4Enabled",false);plugins.sync();m_sessionDisabled=true;setRunning(false);});}
+    Q_INVOKABLE void openRecoveryTools(){QTimer::singleShot(0,this,[this]{setRunning(false);QDesktopServices::openUrl(QUrl::fromLocalFile(QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation)+"/polyswitch/recovery"));});}
     QObject *settings() { return &m_settings; }
     QVariantList tasks() const { return m_tasks; }
     QString primaryOutputName() const { return m_primaryOutput ? m_primaryOutput->name() : QString(); }
@@ -127,7 +134,7 @@ public:
         action->setObjectName(QStringLiteral("PolySwitchNative4Toggle"));
         action->setText(QStringLiteral("PolySwitch Native Stage 4 toggle"));
         connect(action, &QAction::triggered, this, [this] {
-            if(m_chooser->active())return;
+            if(m_chooser->active() || m_sessionDisabled)return;
             if (isRunning()) { setRunning(false); return; }
             m_settings.reload();
             refreshWindows();
@@ -269,6 +276,7 @@ private:
         }
         if (next != m_tasks) { m_tasks = next; Q_EMIT tasksChanged(); }
     }
+    bool m_sessionDisabled=false;
     BackgroundChooser *m_chooser=nullptr;
     QString m_pickerError;
     bool m_reopenSettings=false;
