@@ -19,3 +19,7 @@ Screenshots use synthetic test windows, not personal desktop content. This is no
 ## 0.4.14 header and backgrounds
 
 Core tests verify that imported images are copied and downscaled, remain usable after the original is deleted, and retain header/mode/opacity preferences. An isolated Wayland UI check clicks the header toggle and embedded image picker, imports an image, deletes the source, checks rendered background pixels and visibility, and verifies settings from a fresh process. User preferences/data are isolated for all tests.
+
+## 0.4.15 native chooser and morphs
+
+A private D-Bus portal fixture checks import, cancellation, invalid URLs and unavailable-service behavior. A separate virtual KWin instance verifies effect deactivation/input release and return to Settings after import/cancel. Morph tests check stable task identities, mid-transition retargeting, final shape counts, planar faces and paired boundary edges through 6/7/12/20/5 faces. A Wayland visual harness renders live transitions across 3–12 tasks and a rapid second task update. The GIF uses synthetic previews.
