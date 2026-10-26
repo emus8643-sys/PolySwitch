@@ -6,6 +6,7 @@ import QtQuick.Layouts
 
 C.Pane {
     id: panel
+    property var effectBridge: null
     required property var store
     signal closeRequested()
     property var backgroundListing: ({entries:[]})
@@ -47,7 +48,11 @@ C.Pane {
                 spacing: 16
                 C.Label { text: "HEADER AND BACKGROUND"; color: "#ff778e"; font.bold: true }
                 SettingsSwitch { text: "Show header"; keyName: "showHeader"; store: panel.store; objectName:"showHeaderSwitch" }
-                C.Button { text: "Import background image…"; objectName:"importBackgroundButton"; Layout.fillWidth:true; onClicked: { panel.browseBackground(""); backgroundPicker.open(); } }
+                C.Button { text: "Import background image…"; objectName:"importBackgroundButton"; Layout.fillWidth:true; onClicked: { if(panel.effectBridge && typeof panel.effectBridge.chooseBackground==="function") panel.effectBridge.chooseBackground(); else {panel.browseBackground("");backgroundPicker.open();} } }
+                C.Button { text:"Browse inside PolySwitch…";Layout.fillWidth:true;onClicked:{panel.browseBackground("");backgroundPicker.open();} }
+                C.Label { Layout.fillWidth:true;wrapMode:Text.WordWrap;color:"#ff9dab";text:panel.effectBridge ? panel.effectBridge.pickerError || "" : "";visible:text.length>0 }
+                SettingsSwitch { text: "Smooth shape changes";keyName:"shapeMorphEnabled";store:panel.store }
+                SliderSetting { Layout.fillWidth:true;label:"Shape transition duration";keyName:"shapeMorphDuration";store:panel.store;from:180;to:1200;step:10;suffix:" ms" }
                 SettingsSwitch { text: "Show imported background"; keyName:"backgroundEnabled";store:panel.store }
                 SettingsComboBox {
                     objectName:"backgroundModeCombo";Layout.fillWidth:true

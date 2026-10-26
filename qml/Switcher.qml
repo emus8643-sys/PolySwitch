@@ -14,6 +14,9 @@ Item {
     readonly property int nativeWindowCount: taskEntries.length
     readonly property var nativeWindowIds: taskEntries.map(task => task.id)
     readonly property var nativeWindowTitles: taskEntries.map(task => task.title)
+    Component.onCompleted: {
+        if(typeof effectBridge.consumeSettingsRequest==="function" && effectBridge.consumeSettingsRequest())settingsOpen=true;
+    }
     focus: true
     readonly property real cameraDistance: 67000 / prefs.zoomPercent
     function changeZoom(steps) {
@@ -43,6 +46,7 @@ Item {
     }
     onSearchQueryChanged: { noteInteraction(); Qt.callLater(updateSearch); }
     function activateSelection() {
+        if(polyGeometry.morphing)return;
         if (searchQuery.trim() && !searchMatches.length) return;
         const id=selectedTask>=0?selectedId:nativeWindowIds[hitFace(width/2,height/2)];
         if (id) effectBridge.activateWindowId(id);
@@ -61,6 +65,7 @@ Item {
     }
     function focusSelectedFace() {
         velX=0; velY=0;
+        if(polyGeometry.morphing)return;
         const face = polyGeometry.faces[selectedTask];
         if (face) orientation = ScreenRotation.uprightFace(face.normal);
     }
@@ -90,7 +95,7 @@ Item {
         const inverse=Qt.quaternion(orientation.scalar,-orientation.x,-orientation.y,-orientation.z);
         const camera=ScreenRotation.rotated(inverse,Qt.vector3d(0,0,cameraDistance));
         let best=-Infinity, index=-1;
-        for(let i=0;i<polyGeometry.faces.length;i++) {
+        for(let i=0;i<Math.min(nativeWindowCount,polyGeometry.faces.length);i++) {
             const face=polyGeometry.faces[i];
             let score=face.normal.dotProduct(camera.minus(face.center).normalized());
             if(nativeWindowCount===1 || nativeWindowCount===3 || nativeWindowCount===4)score=Math.abs(score);
@@ -107,7 +112,7 @@ Item {
     }
     function advanceIdle(milliseconds) { updateIdleElapsed(idleMilliseconds+milliseconds); }
     function updateIdleElapsed(milliseconds) {
-        if(!prefs.autoUpright || dragging || searchQuery.trim()) { idleMilliseconds=0; return; }
+        if(polyGeometry.morphing || !prefs.autoUpright || dragging || searchQuery.trim()) { idleMilliseconds=0; return; }
         idleMilliseconds=milliseconds;
         if(!idleAligned && idleMilliseconds>=1000) { idleAligned=true; alignNearestFace(); }
     }
@@ -232,7 +237,10 @@ Item {
             id: body
             geometry: PrismGeometry {
                 id: polyGeometry
-                taskCount: root.faceCount
+                objectName:"shapeGeometry"
+                animated: root.prefs.shapeMorphEnabled
+                duration: root.prefs.shapeMorphDuration
+                taskIds: root.nativeWindowIds
             }
             materials: PrincipledMaterial {
                 baseColor: root.prefs.rimColor
@@ -242,7 +250,7 @@ Item {
             }
             rotation: root.orientation
             Repeater3D {
-                model: root.nativeWindowCount
+                model: polyGeometry.faces.length
                 delegate: Node {
                     id: taskSurface
                     required property int index
@@ -274,7 +282,7 @@ Item {
                                 sourceItem: FacePreview {
                                     face: taskSurface.face
                                     preferences: root.prefs
-                                    active: root.facePreviewsEnabled
+                                    active: root.facePreviewsEnabled && taskSurface.index<root.nativeWindowCount
                                     resolution: root.facePreviewsEnabled ? root.prefs.previewSize : 256
                                     windowId: String(root.nativeWindowIds[taskSurface.index] || "")
                                     title: String(root.nativeWindowTitles[taskSurface.index] || "Window closed")
@@ -289,6 +297,10 @@ Item {
         }
     }
 
+    Connections {
+        target:polyGeometry
+        function onMorphingChanged(){if(!polyGeometry.morphing)Qt.callLater(root.reconcileSelection);}
+    }
     // Intersect actual polygons. Open rings have no cap polygons, so rays
     // can pass through their openings and select the visible inner surface.
     function hitFace(px, py) {
@@ -440,6 +452,11 @@ Item {
     }
     Connections {
         target: root.effectBridge
+        ignoreUnknownSignals: true
+        function onBackgroundPickerFinished() {
+            if(typeof root.effectBridge.consumeSettingsRequest==="function")root.effectBridge.consumeSettingsRequest();
+            root.settingsOpen=true;
+        }
         function onAnimationTick(milliseconds) { root.advanceInertia(milliseconds); }
         function onIdleElapsed(milliseconds) { root.updateIdleElapsed(milliseconds); }
     }
@@ -486,7 +503,7 @@ Item {
             }
         }
         onClicked: mouse => {
-            if (mouse.button !== Qt.LeftButton || root.dragging) return;
+            if (mouse.button !== Qt.LeftButton || root.dragging || polyGeometry.morphing) return;
             const index = root.hitFace(mouse.x, mouse.y);
             if (index >= 0) root.effectBridge.activateWindowId(root.nativeWindowIds[index]);
         }
@@ -506,7 +523,7 @@ Item {
             anchors.left: parent.left; anchors.leftMargin: 22
             anchors.verticalCenter: parent.verticalCenter
             spacing: 18
-            Text { text: "POLYSWITCH  /  STAGE 4.14"; color: "#fff0f3"; font.bold: true; font.pixelSize: 17 }
+            Text { text: "POLYSWITCH  /  STAGE 4.15"; color: "#fff0f3"; font.bold: true; font.pixelSize: 17 }
             Text { text: root.nativeWindowCount + " WINDOWS"; color: "#ff5b73"; font.pixelSize: 14 }
             Text { text: "Wheel zoom · RMB rotate · Arrows select · Enter switch · Esc close"; color: "#9fa8b7"; font.pixelSize: 12 }
         }
@@ -575,6 +592,7 @@ Item {
         anchors.top: parent.top; anchors.topMargin: 66
         anchors.bottom: parent.bottom; anchors.bottomMargin: 18
         width: Math.min(370,root.width-36)
+        effectBridge: root.effectBridge
         store: root.effectBridge.settings
         onCloseRequested: { root.settingsOpen = false; root.forceActiveFocus(); }
     }

@@ -22,7 +22,7 @@ Rectangle {
     function polygonLayout() {
         if (!face.vertices || face.vertices.length < 3) return {aspect:1,x:0,y:0,w:1,h:1};
         const n=face.normal;
-        const preferred=Math.abs(n.y)<0.949999988079071?Qt.vector3d(0,1,0):Qt.vector3d(0,0,-1);
+        const preferred=face.up || (Math.abs(n.y)<0.949999988079071?Qt.vector3d(0,1,0):Qt.vector3d(0,0,-1));
         const up=preferred.minus(n.times(preferred.dotProduct(n))).normalized();
         const right=up.crossProduct(n).normalized();
         const points=face.vertices.map(p=>Qt.point(p.minus(face.center).dotProduct(right),p.minus(face.center).dotProduct(up)));
